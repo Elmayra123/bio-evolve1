@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIO-EVOLVE: Genetik ve Hücresel Evrim Simülatörü</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bioNeon: '#00ffcc',
+                        bioDark: '#0b0f19',
+                        bioCard: '#151c2c',
+                        bioAccent: '#3b82f6',
+                        bioWarning: '#ff4757'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .glow-card {
+            box-shadow: 0 0 25px -5px rgba(0, 255, 204, 0.12);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 12px rgba(0, 255, 204, 0.5);
+        }
+
+        /* Custom Range Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: #1e293b;
+            height: 6px;
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ffcc;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.8);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ffcc;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-bioNeon selection:text-bioDark">
+
+    <!-- Üst Bilgi Çubuğu (Navbar) -->
+    <header class="border-b border-gray-800 bg-bioDark/90 backdrop-blur-md sticky top-0 z-50 py-3.5 px-4 md:px-8 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bioNeon to-blue-600 flex items-center justify-center text-bioDark font-bold text-xl shadow-lg">
+                <i class="fa-solid fa-dna"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg md:text-xl tracking-wide text-white flex flex-wrap items-center gap-2">
+                    BIO-EVOLVE <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-bioNeon/15 text-bioNeon border border-bioNeon/30">Biyoinformatik Laboratuvarı</span>
+                </h1>
+                <p class="text-xs text-gray-400">Genetik Dizilim ve Hücresel Evrim Simülatörü v1.0</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 text-xs">
+            <div class="hidden sm:flex items-center gap-2 bg-bioCard px-3 py-1.5 rounded-xl border border-gray-800 text-gray-300">
+                <i class="fa-solid fa-computer-mouse text-bioNeon"></i>
+                <span>İpucu: DNA analizini görmek için petri kabındaki bir bakteriye tıklayın</span>
+            </div>
+            <span class="bg-gray-800/80 px-3 py-1.5 rounded-xl text-bioNeon font-mono border border-gray-700 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-bioNeon animate-ping"></span> CANLI SİMÜLASYON
+            </span>
+        </div>
+    </header>
+
+    <!-- Bildirim Toast Kutusu (Alert yerine modern bildirim) -->
+    <div id="toast-banner" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-bioCard border border-bioNeon/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-medium">
+            <i id="toast-icon" class="fa-solid fa-flask text-bioNeon text-base"></i>
+            <span id="toast-msg">Bildirim mesajı</span>
+        </div>
+    </div>
+
+    <!-- Ana Çalışma Alanı -->
+    <main class="max-w-[1440px] w-full mx-auto p-4 md:p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- SOL PANEL: Canlı Petri Kabı Simülasyonu ve Çevre Kontrolleri (7 Kolon) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+            
+            <!-- Petri Kabı Kartı -->
+            <div class="bg-bioCard rounded-2xl p-4 md:p-5 border border-gray-800 glow-card flex flex-col">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-3 pb-3 border-b border-gray-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bacterium text-bioNeon"></i>
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Canlı Petri Kabı Ekosistemi</h2>
+                    </div>
+                    <!-- Lejant -->
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Besin</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-bioAccent inline-block"></span> Standart Bakteri</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-bioNeon inline-block"></span> Yüksek Dirençli</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-bioWarning inline-block"></span> Isı Toleranslı</span>
+                    </div>
+                </div>
+
+                <!-- Canvas Kapsayıcı -->
+                <div id="canvas-container" class="relative w-full h-[380px] sm:h-[440px] bg-[#070a12] rounded-xl border border-gray-800 overflow-hidden cursor-crosshair">
+                    <canvas id="petriCanvas" class="block w-full h-full"></canvas>
+                    
+                    <!-- Antibiyotik Dalga Uyarısı Overlay -->
+                    <div id="antibiotic-overlay" class="absolute top-3 left-3 bg-bioWarning/20 border border-bioWarning/50 text-bioWarning px-3 py-1 rounded-lg text-xs font-bold hidden items-center gap-2 backdrop-blur-sm">
+                        <i class="fa-solid fa-biohazard animate-spin"></i>
+                        <span>ANTİBİYOTİK STRESİ AKTİF!</span>
+                    </div>
+
+                    <!-- Sıcaklık Uyarısı Overlay -->
+                    <div id="temp-overlay" class="absolute top-3 right-3 bg-orange-500/20 border border-orange-500/50 text-orange-300 px-3 py-1 rounded-lg text-xs font-bold hidden items-center gap-2 backdrop-blur-sm">
+                        <i class="fa-solid fa-temperature-high"></i>
+                        <span id="temp-warning-text">Aşırı Sıcaklık Stresi!</span>
+                    </div>
+                </div>
+
+                <!-- Simülasyon Aksiyon Butonları -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
+                    <button id="btn-toggle" onclick="toggleSimulation()" class="bg-bioNeon text-bioDark font-bold text-xs py-2.5 px-3 rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-bioNeon/10 cursor-pointer">
+                        <i class="fa-solid fa-pause" id="toggle-icon"></i>
+                        <span id="toggle-text">Duraklat</span>
+                    </button>
+
+                    <button onclick="addFoodBatch(35)" class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-xs py-2.5 px-3 rounded-xl hover:bg-emerald-500/25 transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-seedling"></i>
+                        <span>Yeni Besin Ekle</span>
+                    </button>
+
+                    <button onclick="triggerAntibiotic()" class="bg-bioWarning/15 text-bioWarning border border-bioWarning/30 font-bold text-xs py-2.5 px-3 rounded-xl hover:bg-bioWarning hover:text-white transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-syringe"></i>
+                        <span>Antibiyotik Uygula</span>
+                    </button>
+
+                    <button onclick="resetSimulation()" class="bg-gray-800 text-gray-300 border border-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Sıfırla</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Çevresel Parametreler Kontrol Kartı -->
+            <div class="bg-bioCard rounded-2xl p-4 md:p-5 border border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- Sıcaklık Kontrolü -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="temp-slider" class="text-xs font-bold text-gray-300 flex items-center gap-2">
+                            <i class="fa-solid fa-temperature-three-quarters text-orange-400"></i> Ortam Sıcaklığı
+                        </label>
+                        <span id="temp-value" class="text-xs font-mono font-bold text-bioNeon bg-bioDark px-2.5 py-1 rounded-lg border border-gray-800">37°C (Optimal)</span>
+                    </div>
+                    <input type="range" id="temp-slider" min="10" max="60" value="37" oninput="updateTemperature(this.value)" class="w-full">
+                    <div class="flex justify-between text-[10px] text-gray-500 mt-1.5 font-mono">
+                        <span>10°C (Soğuk)</span>
+                        <span>37°C (İdeal)</span>
+                        <span>60°C (Ekstrem)</span>
+                    </div>
+                </div>
+
+                <!-- Mutasyon Oranı Kontrolü -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="mut-slider" class="text-xs font-bold text-gray-300 flex items-center gap-2">
+                            <i class="fa-solid fa-radiation text-purple-400"></i> Mutasyon Oranı
+                        </label>
+                        <span id="mut-value" class="text-xs font-mono font-bold text-purple-400 bg-bioDark px-2.5 py-1 rounded-lg border border-gray-800">%8</span>
+                    </div>
+                    <input type="range" id="mut-slider" min="0" max="25" value="8" oninput="updateMutationRate(this.value)" class="w-full">
+                    <div class="flex justify-between text-[10px] text-gray-500 mt-1.5 font-mono">
+                        <span>%0 (Kararlı)</span>
+                        <span>%12 (Orta)</span>
+                        <span>%25 (Yüksek)</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- SAĞ PANEL: Genetik Dizilim Analizi ve Ekosistem İstatistikleri (5 Kolon) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+            
+            <!-- Seçili Bakteri DNA Analiz Kartı -->
+            <div class="bg-bioCard rounded-2xl p-4 md:p-5 border border-gray-800 glow-card relative overflow-hidden">
+                <div class="flex justify-between items-start mb-3 pb-3 border-b border-gray-800">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-bioNeon bg-bioNeon/10 px-2.5 py-0.5 rounded-md border border-bioNeon/20">
+                            Biyoinformatik Sekans Analizi
+                        </span>
+                        <h2 id="selected-id" class="text-base font-extrabold text-white mt-1.5 flex items-center gap-2">
+                            Bakteri #101 <span class="text-xs font-normal text-gray-400">(Nesil: 1)</span>
+                        </h2>
+                    </div>
+                    <button onclick="forceMutateSelected()" title="Seçili bakteriye laboratuvar ortamında yapay mutasyon uygula" class="bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-[11px] font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Mutasyon Tetikle
+                    </button>
+                </div>
+
+                <!-- 24 Bazlık DNA Dizilimi Görünümü -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center text-[11px] text-gray-400 mb-1.5">
+                        <span>24-Bazlık Nükleotid Dizisi (5' → 3')</span>
+                        <div class="flex gap-2 font-mono text-[10px]">
+                            <span class="text-emerald-400 font-bold">A</span>
+                            <span class="text-rose-400 font-bold">T</span>
+                            <span class="text-amber-400 font-bold">G</span>
+                            <span class="text-sky-400 font-bold">C</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Gen Bölgeleri Sekans Kutusu -->
+                    <div id="dna-sequence-container" class="bg-bioDark p-3 rounded-xl border border-gray-800 font-mono text-xs tracking-wider space-y-2">
+                        <!-- JS ile dinamik doldurulacak -->
+                    </div>
+                </div>
+
+                <!-- Mutasyon Bildirim Kutusu -->
+                <div id="mutation-log" class="bg-gray-900/90 rounded-xl p-3 border-l-4 border-bioNeon text-xs text-gray-300 mb-4">
+                    <div class="font-bold text-white text-[11px] uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-code-branch text-bioNeon"></i> Genetik & Fenotipik Durum
+                    </div>
+                    <p id="mutation-desc" class="text-gray-400 text-[11px] leading-relaxed">
+                        Atasal (orijinal) DNA dizilimi korunuyor. Herhangi bir baz değişimi tespit edilmedi.
+                    </p>
+                </div>
+
+                <!-- Fenotip (Fiziksel Özellikler) İlerleme Çubukları -->
+                <div class="space-y-3">
+                    <!-- 1. Hareket ve Hız Geni -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-bolt text-amber-400 w-4"></i> Hareket & Hız (Baz 1-8)</span>
+                            <span id="pheno-speed-val" class="font-mono font-bold text-amber-400">65%</span>
+                        </div>
+                        <div class="w-full bg-bioDark h-2 rounded-full overflow-hidden border border-gray-800">
+                            <div id="pheno-speed-bar" class="bg-amber-400 h-full transition-all duration-300" style="width: 65%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Antibiyotik Direnç Geni -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-shield-virus text-bioNeon w-4"></i> Antibiyotik Direnci (Baz 9-16)</span>
+                            <span id="pheno-res-val" class="font-mono font-bold text-bioNeon">40%</span>
+                        </div>
+                        <div class="w-full bg-bioDark h-2 rounded-full overflow-hidden border border-gray-800">
+                            <div id="pheno-res-bar" class="bg-bioNeon h-full transition-all duration-300" style="width: 40%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Isı Toleransı Geni -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-fire text-bioWarning w-4"></i> Isı Toleransı (Baz 17-24)</span>
+                            <span id="pheno-heat-val" class="font-mono font-bold text-bioWarning">50%</span>
+                        </div>
+                        <div class="w-full bg-bioDark h-2 rounded-full overflow-hidden border border-gray-800">
+                            <div id="pheno-heat-bar" class="bg-bioWarning h-full transition-all duration-300" style="width: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canlı Ekosistem İstatistikleri ve Popülasyon Grafiği -->
+            <div class="bg-bioCard rounded-2xl p-4 md:p-5 border border-gray-800">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-bioNeon"></i> Canlı Ekosistem İstatistikleri
+                    </h3>
+                    <span id="stat-gen" class="text-[11px] font-mono bg-bioDark text-bioNeon px-2.5 py-0.5 rounded-md border border-gray-800">Maks. Nesil: 1</span>
+                </div>
+
+                <!-- 3'lü Metrik Kartları -->
+                <div class="grid grid-cols-3 gap-2.5 mb-4">
+                    <div class="bg-bioDark p-2.5 rounded-xl border border-gray-800/80 text-center">
+                        <div class="text-[10px] text-gray-400">Popülasyon</div>
+                        <div id="stat-pop" class="text-lg font-extrabold text-white font-mono mt-0.5">24</div>
+                    </div>
+                    <div class="bg-bioDark p-2.5 rounded-xl border border-gray-800/80 text-center">
+                        <div class="text-[10px] text-gray-400">Ort. Direnç</div>
+                        <div id="stat-res" class="text-lg font-extrabold text-bioNeon font-mono mt-0.5">%38</div>
+                    </div>
+                    <div class="bg-bioDark p-2.5 rounded-xl border border-gray-800/80 text-center">
+                        <div class="text-[10px] text-gray-400">Ort. Hız</div>
+                        <div id="stat-speed" class="text-lg font-extrabold text-amber-400 font-mono mt-0.5">2.1x</div>
+                    </div>
+                </div>
+
+                <!-- Canlı Popülasyon & Direnç Grafiği (Canvas) -->
+                <div>
+                    <div class="flex justify-between items-center text-[10px] text-gray-400 mb-1">
+                        <span>Evrimsel Zaman Çizelgesi</span>
+                        <div class="flex gap-3">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Popülasyon</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-bioNeon"></span> Ort. Direnç (%)</span>
+                        </div>
+                    </div>
+                    <div class="w-full h-28 bg-bioDark rounded-xl border border-gray-800 overflow-hidden p-1">
+                        <canvas id="statsChart" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Alt Bilgi -->
+    <footer class="border-t border-gray-800 bg-bioDark py-3.5 px-6 text-center text-xs text-gray-500">
+        <p>Deneyap Öğrencisi Elif Dicle için Geliştirildi • BIO-EVOLVE Hesaplamalı Biyoloji & Evrim Simülatörü</p>
+    </footer>
+
+    <!-- Simülasyon ve Biyoinformatik Motoru (JavaScript) -->
+    <script>
+        // ==========================================
+        // 1. GLOBAL DEĞİŞKENLER VE SİMÜLASYON DURUMU
+        // ==========================================
+        const petriCanvas = document.getElementById('petriCanvas');
+        const ctx = petriCanvas.getContext('2d');
+        const chartCanvas = document.getElementById('statsChart');
+        const chartCtx = chartCanvas.getContext('2d');
+
+        let isRunning = true;
+        let bacteriaList = [];
+        let foodList = [];
+        let pulseWaves = [];
+        let selectedBacterium = null;
+        let nextBacteriumId = 101;
+        let maxGeneration = 1;
+
+        // Çevresel Parametreler
+        let temperature = 37;         // 10°C - 60°C
+        let mutationRate = 0.08;      // %0 - %25 (0.00 - 0.25)
+        let antibioticTimer = 0;      // Antibiyotik etki süresi (frame)
+
+        // Grafik Geçmişi
+        let historyPop = [];
+        let historyRes = [];
+        let frameCounter = 0;
+
+        const BASES = ['A', 'T', 'G', 'C'];
+        const BASE_COLORS = {
+            'A': 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
+            'T': 'text-rose-400 bg-rose-500/15 border-rose-500/30',
+            'G': 'text-amber-400 bg-amber-500/15 border-amber-500/30',
+            'C': 'text-sky-400 bg-sky-500/15 border-sky-500/30'
+        };
+
+        // ==========================================
+        // 2. GENETİK ALGORİTMA VE FENOTİP HESAPLAMA
+        // ==========================================
+        
+        // 24 bazlık rastgele DNA oluşturur
+        function generateRandomDNA() {
+            let dna = [];
+            for (let i = 0; i < 24; i++) {
+                dna.push(BASES[Math.floor(Math.random() * BASES.length)]);
+            }
+            return dna;
+        }
+
+        // DNA dizilimini okuyarak fenotipik (fiziksel) özellikleri hesaplar
+        function decodeGenotype(dna) {
+            // Bölge 1 (Baz 0-7): Hareket ve Hız Geni ('A' ve 'T' zenginliği + 'ATG' motifi hızı artırır)
+            const speedGene = dna.slice(0, 8).join('');
+            let speedScore = 30;
+            for (let b of speedGene) {
+                if (b === 'A' || b === 'T') speedScore += 7;
+            }
+            if (speedGene.includes('ATG')) speedScore += 18;
+            speedScore = Math.min(100, Math.max(15, speedScore));
+
+            // Bölge 2 (Baz 8-15): Antibiyotik Direnç Geni ('G' ve 'C' yoğunluğu + 'GC' çiftleri direnç sağlar)
+            const resGene = dna.slice(8, 16).join('');
+            let resScore = 10;
+            for (let b of resGene) {
+                if (b === 'G' || b === 'C') resScore += 9;
+            }
+            if (resGene.includes('GCGC') || resGene.includes('CGCG')) resScore += 20;
+            resScore = Math.min(100, Math.max(5, resScore));
+
+            // Bölge 3 (Baz 16-23): Isı Toleransı Geni (Üçlü hidrojen bağı yapan G-C oranı termal kararlılık sağlar)
+            const heatGene = dna.slice(16, 24).join('');
+            let heatScore = 15;
+            for (let b of heatGene) {
+                if (b === 'G') heatScore += 10;
+                if (b === 'C') heatScore += 8;
+            }
+            heatScore = Math.min(100, Math.max(10, heatScore));
+
+            return {
+                speedPercent: speedScore,
+                actualSpeed: 0.7 + (speedScore / 100) * 2.3, // Piksel/kare hızı
+                resistancePercent: resScore,
+                heatTolerancePercent: heatScore
+            };
+        }
+
+        // DNA kopyalanırken mutasyon uygular
+        function replicateDNA(parentDNA, rate) {
+            let childDNA = [...parentDNA];
+            let mutations = [];
+
+            for (let i = 0; i < childDNA.length; i++) {
+                if (Math.random() < rate) {
+                    const oldBase = childDNA[i];
+                    const available = BASES.filter(b => b !== oldBase);
+                    const newBase = available[Math.floor(Math.random() * available.length)];
+                    childDNA[i] = newBase;
+                    mutations.push({ index: i, from: oldBase, to: newBase });
+                }
+            }
+            return { dna: childDNA, mutations };
+        }
+
+        // ==========================================
+        // 3. BAKTERİ SINIFI (HÜCRESEL SİMÜLASYON)
+        // ==========================================
+        class Bacterium {
+            constructor(x, y, dna, generation = 1, mutationInfo = null) {
+                this.id = nextBacteriumId++;
+                this.x = x;
+                this.y = y;
+                this.dna = dna;
+                this.generation = generation;
+                this.mutations = mutationInfo || [];
+                this.phenotype = decodeGenotype(this.dna);
+
+                this.energy = 60 + Math.random() * 25; // 100 olunca bölünür, 0 olunca ölür
+                this.radius = 6 + (this.energy / 100) * 4;
+                this.angle = Math.random() * Math.PI * 2;
+                this.wiggleOffset = Math.random() * 100;
+            }
+
+            // Baskın gene göre bakteri rengi belirler
+            getColor() {
+                if (this.phenotype.resistancePercent >= 65) return '#00ffcc'; // Yüksek direnç (BioNeon)
+                if (this.phenotype.heatTolerancePercent >= 70) return '#ff4757'; // Isı toleranslı (BioWarning)
+                return '#3b82f6'; // Standart bakteri (BioAccent)
+            }
+
+            update(width, height) {
+                // En yakın besine yönelme (Kemotaksi)
+                let nearestFood = null;
+                let minDist = 140; // Algılama yarıçapı
+
+                for (let f of foodList) {
+                    const dx = f.x - this.x;
+                    const dy = f.y - this.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestFood = f;
+                    }
+                }
+
+                if (nearestFood) {
+                    const targetAngle = Math.atan2(nearestFood.y - this.y, nearestFood.x - this.x);
+                    // Yumuşak dönüş
+                    this.angle += Math.sin(targetAngle - this.angle) * 0.12;
+                } else {
+                    // Rastgele gezinme
+                    this.angle += (Math.random() - 0.5) * 0.25;
+                }
+
+                // Çevresel stres faktörlerinin hıza ve enerjiye etkisi
+                let speedMultiplier = 1.0;
+                let energyDrain = 0.045 + (this.phenotype.actualSpeed * 0.015);
+
+                // 1. Sıcaklık Stresi Kontrolü (İdeal 37°C)
+                const tempDiff = Math.abs(temperature - 37);
+                if (temperature > 42) {
+                    // Yüksek sıcaklıkta ısı toleransı düşük olanlar enerji kaybeder
+                    const heatVulnerability = Math.max(0, (100 - this.phenotype.heatTolerancePercent) / 100);
+                    energyDrain += (temperature - 42) * 0.012 * heatVulnerability;
+                } else if (temperature < 22) {
+                    // Soğuk ortam metabolizmayı ve hızı yavaşlatır
+                    speedMultiplier *= 0.55;
+                }
+
+                // 2. Antibiyotik Stresi Kontrolü
+                if (antibioticTimer > 0) {
+                    const resFactor = this.phenotype.resistancePercent / 100;
+                    if (resFactor < 0.65) {
+                        // Dirençsiz bakteri yavaşlar ve hücre duvarı hasar alır
+                        speedMultiplier *= (0.25 + resFactor * 0.5);
+                        energyDrain += (1 - resFactor) * 0.38;
+                    }
+                }
+
+                // Hareket uygula
+                const moveSpeed = this.phenotype.actualSpeed * speedMultiplier;
+                this.x += Math.cos(this.angle) * moveSpeed;
+                this.y += Math.sin(this.angle) * moveSpeed;
+
+                // Petri kabı duvarlarından sekme
+                if (this.x < this.radius + 5) { this.x = this.radius + 5; this.angle = Math.PI - this.angle; }
+                if (this.x > width - this.radius - 5) { this.x = width - this.radius - 5; this.angle = Math.PI - this.angle; }
+                if (this.y < this.radius + 5) { this.y = this.radius + 5; this.angle = -this.angle; }
+                if (this.y > height - this.radius - 5) { this.y = height - this.radius - 5; this.angle = -this.angle; }
+
+                // Besin tüketimi
+                for (let i = foodList.length - 1; i >= 0; i--) {
+                    const f = foodList[i];
+                    if (Math.hypot(f.x - this.x, f.y - this.y) < this.radius + f.radius + 2) {
+                        this.energy = Math.min(115, this.energy + 28);
+                        foodList.splice(i, 1);
+                        break;
+                    }
+                }
+
+                // Enerji tüketimi ve boyut güncelleme
+                this.energy -= energyDrain;
+                this.radius = 5.5 + Math.max(0, (this.energy / 100) * 4.5);
+                this.wiggleOffset += 0.25;
+            }
+
+            draw(ctx) {
+                const color = this.getColor();
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Seçili bakteri ise etrafına neon hedef halkası çiz
+                if (selectedBacterium && selectedBacterium.id === this.id) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 8 + Math.sin(this.wiggleOffset * 0.5) * 2, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#00ffcc';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Kamçı (Flagellum) animasyonu - Hız genine göre dalgalanır
+                ctx.beginPath();
+                ctx.moveTo(-this.radius, 0);
+                const tailWave = Math.sin(this.wiggleOffset) * 4;
+                ctx.quadraticCurveTo(-this.radius - 6, tailWave, -this.radius - 12, -tailWave);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Bakteri Gövdesi (Kapsül / Basil Formu)
+                ctx.beginPath();
+                ctx.roundRect(-this.radius * 1.2, -this.radius * 0.75, this.radius * 2.4, this.radius * 1.5, this.radius * 0.75);
+                ctx.fillStyle = color + '33'; // Yarı saydam iç dolgu
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Hücre İçi Çekirdek / Plazmid Noktası
+                ctx.beginPath();
+                ctx.arc(this.radius * 0.3, 0, this.radius * 0.25, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // ==========================================
+        // 4. SİMÜLASYON YÖNETİMİ VE DÖNGÜSÜ
+        // ==========================================
+        function resizeCanvases() {
+            const container = document.getElementById('canvas-container');
+            petriCanvas.width = container.clientWidth;
+            petriCanvas.height = container.clientHeight;
+
+            const chartParent = chartCanvas.parentElement;
+            chartCanvas.width = chartParent.clientWidth;
+            chartCanvas.height = chartParent.clientHeight;
+        }
+
+        function initSimulation() {
+            resizeCanvases();
+            bacteriaList = [];
+            foodList = [];
+            pulseWaves = [];
+            historyPop = [];
+            historyRes = [];
+            nextBacteriumId = 101;
+            maxGeneration = 1;
+            antibioticTimer = 0;
+            document.getElementById('antibiotic-overlay').classList.add('hidden');
+            document.getElementById('antibiotic-overlay').classList.remove('flex');
+
+            // Başlangıç popülasyonu (24 bakteri)
+            for (let i = 0; i < 24; i++) {
+                const x = 40 + Math.random() * (petriCanvas.width - 80);
+                const y = 40 + Math.random() * (petriCanvas.height - 80);
+                bacteriaList.push(new Bacterium(x, y, generateRandomDNA(), 1));
+            }
+
+            // Başlangıç besinleri
+            addFoodBatch(55, true);
+
+            // İlk bakteriyi seçili yap
+            selectBacterium(bacteriaList[0]);
+            updateStatsUI();
+        }
+
+        function addFoodBatch(count, silent = false) {
+            for (let i = 0; i < count; i++) {
+                foodList.push({
+                    x: 20 + Math.random() * (petriCanvas.width - 40),
+                    y: 20 + Math.random() * (petriCanvas.height - 40),
+                    radius: 2.5 + Math.random() * 1.5
+                });
+            }
+            if (!silent) {
+                showToast(`Petri kabına ${count} birim glikoz besini eklendi.`, 'fa-seedling');
+            }
+        }
+
+        function triggerAntibiotic() {
+            antibioticTimer = 260; // Yaklaşık 4-5 saniye aktif stres dalgası
+            pulseWaves.push({
+                x: petriCanvas.width / 2,
+                y: petriCanvas.height / 2,
+                radius: 10,
+                maxRadius: Math.max(petriCanvas.width, petriCanvas.height),
+                alpha: 0.8
+            });
+
+            const overlay = document.getElementById('antibiotic-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+
+            showToast("Antibiyotik uygulandı! Direnç geni zayıf olan bakteriler eleniyor...", "fa-syringe");
+        }
+
+        function updateTemperature(val) {
+            temperature = parseInt(val);
+            const label = document.getElementById('temp-value');
+            const overlay = document.getElementById('temp-overlay');
+            const warnText = document.getElementById('temp-warning-text');
+
+            if (temperature >= 45) {
+                label.innerText = `${temperature}°C (Yüksek Isı!)`;
+                label.className = "text-xs font-mono font-bold text-bioWarning bg-bioDark px-2.5 py-1 rounded-lg border border-bioWarning/40";
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+                warnText.innerText = `Yüksek Sıcaklık (${temperature}°C): G-C bağı yüksek olanlar hayatta kalır!`;
+            } else if (temperature <= 20) {
+                label.innerText = `${temperature}°C (Soğuk)`;
+                label.className = "text-xs font-mono font-bold text-sky-400 bg-bioDark px-2.5 py-1 rounded-lg border border-sky-500/40";
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+                warnText.innerText = `Düşük Sıcaklık (${temperature}°C): Metabolizma yavaşladı.`;
+            } else {
+                label.innerText = `${temperature}°C (Optimal)`;
+                label.className = "text-xs font-mono font-bold text-bioNeon bg-bioDark px-2.5 py-1 rounded-lg border border-gray-800";
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        }
+
+        function updateMutationRate(val) {
+            mutationRate = parseInt(val) / 100;
+            document.getElementById('mut-value').innerText = `%${val}`;
+        }
+
+        function toggleSimulation() {
+            isRunning = !isRunning;
+            const icon = document.getElementById('toggle-icon');
+            const text = document.getElementById('toggle-text');
+            if (isRunning) {
+                icon.className = 'fa-solid fa-pause';
+                text.innerText = 'Duraklat';
+            } else {
+                icon.className = 'fa-solid fa-play';
+                text.innerText = 'Devam Et';
+            }
+        }
+
+        function resetSimulation() {
+            initSimulation();
+            showToast("Simülasyon sıfırlandı ve yeni atasal koloni oluşturuldu.", "fa-rotate-right");
+        }
+
+        // Seçili bakteriye anında laboratuvar mutasyonu uygular
+        function forceMutateSelected() {
+            if (!selectedBacterium) return;
+            const result = replicateDNA(selectedBacterium.dna, 0.25); // Yüksek mutasyon şansı
+            if (result.mutations.length === 0) {
+                // En az 1 baz kesin değişsin
+                const idx = Math.floor(Math.random() * 24);
+                const oldB = selectedBacterium.dna[idx];
+                const newB = BASES.filter(b => b !== oldB)[0];
+                result.dna[idx] = newB;
+                result.mutations.push({ index: idx, from: oldB, to: newB });
+            }
+            selectedBacterium.dna = result.dna;
+            selectedBacterium.mutations = result.mutations;
+            selectedBacterium.phenotype = decodeGenotype(selectedBacterium.dna);
+            updateDNAInspector(selectedBacterium);
+            showToast(`Bakteri #${selectedBacterium.id} üzerinde ${result.mutations.length} nokta mutasyonu tetiklendi!`, "fa-dna");
+        }
+
+        // ==========================================
+        // 5. SAĞ PANEL: DNA ANALİZİ VE GRAFİK GÜNCELLEME
+        // ==========================================
+        function selectBacterium(bact) {
+            selectedBacterium = bact;
+            if (!bact) return;
+            updateDNAInspector(bact);
+        }
+
+        function updateDNAInspector(bact) {
+            document.getElementById('selected-id').innerHTML = `
+                Bakteri #${bact.id} <span class="text-xs font-normal text-gray-400">(Nesil: ${bact.generation} • Enerji: %${Math.round(bact.energy)})</span>
+            `;
+
+            const seqContainer = document.getElementById('dna-sequence-container');
+            const mutatedIndices = new Set(bact.mutations.map(m => m.index));
+
+            // 3 Gen bölgesini ayrı satırlarda ve açıklamalı göster
+            const regions = [
+                { name: "GEN-1 (Hız)", start: 0, end: 8 },
+                { name: "GEN-2 (Direnç)", start: 8, end: 16 },
+                { name: "GEN-3 (Isı)", start: 16, end: 24 }
+            ];
+
+            let html = '';
+            regions.forEach(reg => {
+                let basesHtml = '';
+                for (let i = reg.start; i < reg.end; i++) {
+                    const base = bact.dna[i];
+                    const isMutated = mutatedIndices.has(i);
+                    const colorClass = BASE_COLORS[base];
+                    const highlightClass = isMutated ? 'ring-2 ring-purple-400 scale-110 font-black' : '';
+                    basesHtml += `<span class="inline-flex items-center justify-center w-5 h-6 rounded border ${colorClass} ${highlightClass} transition-transform">${base}</span>`;
+                }
+
+                html += `
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] text-gray-400 w-24 shrink-0">${reg.name}:</span>
+                        <div class="flex gap-1 flex-wrap">${basesHtml}</div>
+                    </div>
+                `;
+            });
+            seqContainer.innerHTML = html;
+
+            // Mutasyon açıklaması
+            const mutDesc = document.getElementById('mutation-desc');
+            if (bact.mutations && bact.mutations.length > 0) {
+                const summary = bact.mutations.map(m => `Baz #${m.index + 1} (${m.from}→${m.to})`).join(', ');
+                mutDesc.innerHTML = `<span class="text-purple-400 font-semibold">${bact.mutations.length} Nokta Mutasyonu Tespit Edildi:</span> ${summary}. Bu değişim protein sentezini ve fenotip değerlerini doğrudan etkiledi.`;
+            } else {
+                mutDesc.innerText = "Atasal (orijinal) DNA dizilimi korunuyor. Son bölünmede nokta mutasyonu gözlenmedi.";
+            }
+
+            // Fenotip Barlarını Güncelle
+            const p = bact.phenotype;
+            document.getElementById('pheno-speed-val').innerText = `%${p.speedPercent}`;
+            document.getElementById('pheno-speed-bar').style.width = `${p.speedPercent}%`;
+
+            document.getElementById('pheno-res-val').innerText = `%${p.resistancePercent}`;
+            document.getElementById('pheno-res-bar').style.width = `${p.resistancePercent}%`;
+
+            document.getElementById('pheno-heat-val').innerText = `%${p.heatTolerancePercent}`;
+            document.getElementById('pheno-heat-bar').style.width = `${p.heatTolerancePercent}%`;
+        }
+
+        function updateStatsUI() {
+            const pop = bacteriaList.length;
+            document.getElementById('stat-pop').innerText = pop;
+            document.getElementById('stat-gen').innerText = `Maks. Nesil: ${maxGeneration}`;
+
+            if (pop === 0) {
+                document.getElementById('stat-res').innerText = '%0';
+                document.getElementById('stat-speed').innerText = '0.0x';
+                return;
+            }
+
+            let totalRes = 0;
+            let totalSpeed = 0;
+            for (let b of bacteriaList) {
+                totalRes += b.phenotype.resistancePercent;
+                totalSpeed += b.phenotype.actualSpeed;
+            }
+
+            const avgRes = Math.round(totalRes / pop);
+            const avgSpeed = (totalSpeed / pop).toFixed(1);
+
+            document.getElementById('stat-res').innerText = `%${avgRes}`;
+            document.getElementById('stat-speed').innerText = `${avgSpeed}x`;
+
+            // Grafik verisi kaydet
+            historyPop.push(pop);
+            historyRes.push(avgRes);
+            if (historyPop.length > 60) {
+                historyPop.shift();
+                historyRes.shift();
+            }
+            drawStatsChart();
+        }
+
+        function drawStatsChart() {
+            const w = chartCanvas.width;
+            const h = chartCanvas.height;
+            chartCtx.clearRect(0, 0, w, h);
+
+            // Izgara çizgileri
+            chartCtx.strokeStyle = '#1e293b';
+            chartCtx.lineWidth = 1;
+            for (let y = 20; y < h; y += 25) {
+                chartCtx.beginPath();
+                chartCtx.moveTo(0, y);
+                chartCtx.lineTo(w, y);
+                chartCtx.stroke();
+            }
+
+            if (historyPop.length < 2) return;
+
+            const stepX = w / 59;
+
+            // 1. Popülasyon Eğrisi (Mavi)
+            chartCtx.beginPath();
+            chartCtx.strokeStyle = '#60a5fa';
+            chartCtx.lineWidth = 2;
+            historyPop.forEach((val, idx) => {
+                const x = idx * stepX;
+                const y = h - Math.min(h - 8, (val / 90) * (h - 14)) - 4;
+                if (idx === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            });
+            chartCtx.stroke();
+
+            // 2. Ortalama Direnç Eğrisi (BioNeon)
+            chartCtx.beginPath();
+            chartCtx.strokeStyle = '#00ffcc';
+            chartCtx.lineWidth = 2;
+            historyRes.forEach((val, idx) => {
+                const x = idx * stepX;
+                const y = h - ((val / 100) * (h - 14)) - 4;
+                if (idx === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            });
+            chartCtx.stroke();
+        }
+
+        // ==========================================
+        // 6. ANA ANİMASYON DÖNGÜSÜ (RENDER LOOP)
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const w = petriCanvas.width;
+            const h = petriCanvas.height;
+
+            // Arka plan ve Petri Kabı Izgarası
+            ctx.fillStyle = '#070a12';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.35)';
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for (let x = 0; x < w; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 0; y < h; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            // Antibiyotik şok dalgası animasyonu
+            for (let i = pulseWaves.length - 1; i >= 0; i--) {
+                const wave = pulseWaves[i];
+                wave.radius += 8;
+                wave.alpha -= 0.015;
+                if (wave.alpha <= 0) {
+                    pulseWaves.splice(i, 1);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 71, 87, ${wave.alpha})`;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+            }
+
+            if (isRunning) {
+                frameCounter++;
+
+                // Doğal besin yenilenmesi (Ekosistem dengesi)
+                if (frameCounter % 45 === 0 && foodList.length < 75) {
+                    addFoodBatch(3, true);
+                }
+
+                // Antibiyotik sayacı
+                if (antibioticTimer > 0) {
+                    antibioticTimer--;
+                    if (antibioticTimer === 0) {
+                        document.getElementById('antibiotic-overlay').classList.add('hidden');
+                        document.getElementById('antibiotic-overlay').classList.remove('flex');
+                    }
+                }
+
+                // Bakteri güncelleme, bölünme (mitoz) ve ölüm
+                for (let i = bacteriaList.length - 1; i >= 0; i--) {
+                    const b = bacteriaList[i];
+                    b.update(w, h);
+
+                    // Bölünme kontrolü (Maksimum 95 bakteri sınırı performans için)
+                    if (b.energy >= 100 && bacteriaList.length < 95) {
+                        b.energy = 48; // Enerjiyi ikiye böl
+                        const childGen = b.generation + 1;
+                        if (childGen > maxGeneration) maxGeneration = childGen;
+
+                        const rep = replicateDNA(b.dna, mutationRate);
+                        const child = new Bacterium(
+                            b.x + (Math.random() - 0.5) * 14,
+                            b.y + (Math.random() - 0.5) * 14,
+                            rep.dna,
+                            childGen,
+                            rep.mutations
+                        );
+                        bacteriaList.push(child);
+                    }
+
+                    // Ölüm kontrolü
+                    if (b.energy <= 0) {
+                        if (selectedBacterium && selectedBacterium.id === b.id) {
+                            selectedBacterium = null;
+                        }
+                        bacteriaList.splice(i, 1);
+                    }
+                }
+
+                // Seçili bakteri öldüyse hayatta olan birini seç
+                if (!selectedBacterium && bacteriaList.length > 0) {
+                    selectBacterium(bacteriaList[0]);
+                }
+
+                // Periyodik UI ve istatistik güncellemesi
+                if (frameCounter % 20 === 0) {
+                    updateStatsUI();
+                    if (selectedBacterium) {
+                        document.getElementById('selected-id').innerHTML = `
+                            Bakteri #${selectedBacterium.id} <span class="text-xs font-normal text-gray-400">(Nesil: ${selectedBacterium.generation} • Enerji: %${Math.max(0, Math.round(selectedBacterium.energy))})</span>
+                        `;
+                    }
+                }
+            }
+
+            // Besinleri Çiz
+            for (let f of foodList) {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#34d399';
+                ctx.shadowColor = '#34d399';
+                ctx.shadowBlur = 6;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Bakterileri Çiz
+            for (let b of bacteriaList) {
+                b.draw(ctx);
+            }
+        }
+
+        // ==========================================
+        // 7. ETKİLEŞİM VE KULLANICI OLAYLARI
+        // ==========================================
+        function handleCanvasSelect(clientX, clientY) {
+            const rect = petriCanvas.getBoundingClientRect();
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+
+            let closest = null;
+            let minDist = 35; // Dokunmatik ve fare tıklaması için toleranslı yarıçap
+
+            for (let b of bacteriaList) {
+                const dist = Math.hypot(b.x - clickX, b.y - clickY);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = b;
+                }
+            }
+
+            if (closest) {
+                selectBacterium(closest);
+                showToast(`Bakteri #${closest.id} sekanslandı.`, 'fa-dna');
+            }
+        }
+
+        petriCanvas.addEventListener('click', (e) => {
+            handleCanvasSelect(e.clientX, e.clientY);
+        });
+
+        petriCanvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                handleCanvasSelect(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+
+        // Toast Bildirim Yardımcısı
+        let toastTimeout = null;
+        function showToast(message, iconClass = 'fa-flask') {
+            const banner = document.getElementById('toast-banner');
+            document.getElementById('toast-msg').innerText = message;
+            document.getElementById('toast-icon').className = `fa-solid ${iconClass} text-bioNeon text-base`;
+
+            banner.classList.remove('translate-y-20', 'opacity-0');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                banner.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvases();
+            drawStatsChart();
+        });
+
+        // Sayfa yüklendiğinde başlat
+        window.onload = function() {
+            initSimulation();
+            animate();
+        };
+    </script>
+</body>
+</html>
